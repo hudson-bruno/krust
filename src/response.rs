@@ -2,6 +2,8 @@ use std::io;
 
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
+use crate::request::KafkaRequest;
+
 #[derive(Debug, PartialEq, Eq)]
 pub struct KafkaResponseHeader {
     pub correlation_id: i32,
@@ -34,5 +36,16 @@ impl KafkaResponse {
         writer.write_i32(self.header.correlation_id).await?;
 
         Ok(())
+    }
+}
+
+impl From<KafkaRequest> for KafkaResponse {
+    fn from(request: KafkaRequest) -> Self {
+        Self {
+            message_size: 0,
+            header: KafkaResponseHeader {
+                correlation_id: request.header.correlation_id,
+            },
+        }
     }
 }
