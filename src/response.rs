@@ -3,17 +3,17 @@ use std::io;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct KafkaRequestHeader {
+pub struct KafkaResponseHeader {
     pub correlation_id: i32,
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct KafkaRequest {
+pub struct KafkaResponse {
     pub message_size: i32,
-    pub header: KafkaRequestHeader,
+    pub header: KafkaResponseHeader,
 }
 
-impl KafkaRequest {
+impl KafkaResponse {
     pub async fn from_reader<R>(reader: &mut R) -> Result<Self, io::Error>
     where
         R: AsyncReadExt + Unpin,
@@ -22,7 +22,7 @@ impl KafkaRequest {
 
         Ok(Self {
             message_size,
-            header: KafkaRequestHeader { correlation_id: 7 },
+            header: KafkaResponseHeader { correlation_id: 7 },
         })
     }
 

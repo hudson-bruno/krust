@@ -1,6 +1,6 @@
 use std::io;
 
-use codecrafters_kafka::request::KafkaRequest;
+use codecrafters_kafka::response::KafkaResponse;
 use tokio::{
     net::{TcpListener, TcpStream},
     task::JoinHandle,
@@ -28,11 +28,11 @@ impl TestContext {
         }
     }
 
-    pub async fn parse_request(&mut self) -> io::Result<KafkaRequest> {
-        KafkaRequest::from_reader(&mut self.client_io).await
+    pub async fn parse_request(&mut self) -> io::Result<KafkaResponse> {
+        KafkaResponse::from_reader(&mut self.client_io).await
     }
 
-    pub async fn send_request(&mut self, request: &KafkaRequest) -> io::Result<()> {
+    pub async fn send_request(&mut self, request: &KafkaResponse) -> io::Result<()> {
         request.write_into(&mut self.client_io).await
     }
 }

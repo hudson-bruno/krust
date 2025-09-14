@@ -6,9 +6,9 @@ use tokio::{
     time::Instant,
 };
 
-pub mod request;
+pub mod response;
 
-use request::KafkaRequest;
+use response::KafkaResponse;
 
 pub fn serve(listener: TcpListener) -> Serve {
     Serve { listener }
@@ -36,7 +36,7 @@ async fn handle_connection(mut io: TcpStream, remote_addr: SocketAddr) {
 
         let start_time = Instant::now();
 
-        let request = KafkaRequest::from_reader(&mut io).await.unwrap();
+        let request = KafkaResponse::from_reader(&mut io).await.unwrap();
         tracing::debug!("request: {:?}", request);
 
         let response = request;

@@ -1,4 +1,4 @@
-use codecrafters_kafka::request::{KafkaRequest, KafkaRequestHeader};
+use codecrafters_kafka::response::{KafkaResponse, KafkaResponseHeader};
 
 mod common;
 use common::TestContext;
@@ -7,9 +7,9 @@ use common::TestContext;
 async fn test_parse_correlation_id() {
     let mut ctx = TestContext::new().await;
 
-    let request = KafkaRequest {
+    let request = KafkaResponse {
         message_size: 0,
-        header: KafkaRequestHeader { correlation_id: 7 },
+        header: KafkaResponseHeader { correlation_id: 7 },
     };
     ctx.send_request(&request).await.unwrap();
 
