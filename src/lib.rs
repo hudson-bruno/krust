@@ -1,6 +1,7 @@
 use std::{io, net::SocketAddr};
 
 use tokio::{
+    io::AsyncWriteExt,
     net::{TcpListener, TcpStream},
     time::Instant,
 };
@@ -40,6 +41,8 @@ async fn handle_connection(mut io: TcpStream, remote_addr: SocketAddr) {
 
         let response = request;
         response.write_into(&mut io).await.unwrap();
+
+        io.shutdown().await.unwrap();
 
         let elapsed_time = start_time.elapsed();
         tracing::debug!("response: {:?} elapsed: {:?}", response, elapsed_time);
