@@ -35,13 +35,11 @@ async fn handle_connection(mut io: TcpStream, remote_addr: SocketAddr) {
 
         let start_time = Instant::now();
 
-        let (mut reader, mut writer) = io.split();
-
-        let request = KafkaRequest::from_reader(&mut reader).await.unwrap();
+        let request = KafkaRequest::from_reader(&mut io).await.unwrap();
         tracing::debug!("request: {:?}", request);
 
         let response = request;
-        response.write_into(&mut writer).await.unwrap();
+        response.write_into(&mut io).await.unwrap();
 
         let elapsed_time = start_time.elapsed();
         tracing::debug!("response: {:?} elapsed: {:?}", response, elapsed_time);
