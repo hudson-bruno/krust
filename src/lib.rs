@@ -44,7 +44,6 @@ async fn handle_connection(mut io: TcpStream, remote_addr: SocketAddr) {
         tracing::debug!("request: {:?}", request);
 
         let response: KafkaResponse = KafkaResponse {
-            message_size: 0,
             header: KafkaResponseHeader {
                 correlation_id: request.header.correlation_id,
             },
@@ -57,4 +56,8 @@ async fn handle_connection(mut io: TcpStream, remote_addr: SocketAddr) {
         let elapsed_time = start_time.elapsed();
         tracing::debug!("response: {:?} elapsed: {:?}", response, elapsed_time);
     });
+}
+
+pub trait Serializable {
+    fn size(&self) -> usize;
 }

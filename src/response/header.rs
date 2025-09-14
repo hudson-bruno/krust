@@ -1,6 +1,8 @@
-use std::io;
+use std::{io, mem};
 
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+use crate::Serializable;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct KafkaResponseHeader {
@@ -24,5 +26,11 @@ impl KafkaResponseHeader {
         writer.write_i32(self.correlation_id).await?;
 
         Ok(())
+    }
+}
+
+impl Serializable for KafkaResponseHeader {
+    fn size(&self) -> usize {
+        mem::size_of::<i32>()
     }
 }

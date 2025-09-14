@@ -1,6 +1,8 @@
-use std::io;
+use std::{io, mem};
 
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+use crate::Serializable;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct KafkaResponseBody {
@@ -24,5 +26,11 @@ impl KafkaResponseBody {
         writer.write_i16(self.error_code).await?;
 
         Ok(())
+    }
+}
+
+impl Serializable for KafkaResponseBody {
+    fn size(&self) -> usize {
+        mem::size_of::<i16>()
     }
 }
