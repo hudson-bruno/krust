@@ -12,6 +12,8 @@ pub mod response;
 use request::KafkaRequest;
 use response::KafkaResponse;
 
+use crate::response::{body::KafkaResponseBody, header::KafkaResponseHeader};
+
 pub fn serve(listener: TcpListener) -> Serve {
     Serve { listener }
 }
@@ -41,7 +43,13 @@ async fn handle_connection(mut io: TcpStream, remote_addr: SocketAddr) {
         let request = KafkaRequest::from_reader(&mut io).await.unwrap();
         tracing::debug!("request: {:?}", request);
 
-        let response: KafkaResponse = request.into();
+        let response: KafkaResponse = KafkaResponse {
+            message_size: 0,
+            header: KafkaResponseHeader {
+                correlation_id: request.header.correlation_id,
+            },
+            body: KafkaResponseBody { error_code: 35 },
+        };
         response.write_into(&mut io).await.unwrap();
 
         io.shutdown().await.unwrap();
