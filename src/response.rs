@@ -2,17 +2,16 @@ use std::io;
 
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-use crate::request::KafkaRequest;
+use crate::response::{body::KafkaResponseBody, header::KafkaResponseHeader};
 
-#[derive(Debug, PartialEq, Eq)]
-pub struct KafkaResponseHeader {
-    pub correlation_id: i32,
-}
+pub mod body;
+pub mod header;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct KafkaResponse {
     pub message_size: i32,
     pub header: KafkaResponseHeader,
+    pub body: KafkaResponseBody,
 }
 
 impl KafkaResponse {
@@ -21,10 +20,13 @@ impl KafkaResponse {
         R: AsyncReadExt + Unpin,
     {
         let message_size: i32 = reader.read_i32().await?;
+        let header = KafkaResponseHeader::from_reader(reader).await?;
+        let body = KafkaResponseBody::from_reader(reader).await?;
 
         Ok(Self {
             message_size,
-            header: KafkaResponseHeader { correlation_id: 7 },
+            header,
+            body,
         })
     }
 
@@ -33,19 +35,9 @@ impl KafkaResponse {
         W: AsyncWriteExt + Unpin,
     {
         writer.write_i32(self.message_size).await?;
-        writer.write_i32(self.header.correlation_id).await?;
+        self.header.write_into(writer).await?;
+        self.body.write_into(writer).await?;
 
         Ok(())
-    }
-}
-
-impl From<KafkaRequest> for KafkaResponse {
-    fn from(request: KafkaRequest) -> Self {
-        Self {
-            message_size: 0,
-            header: KafkaResponseHeader {
-                correlation_id: request.header.correlation_id,
-            },
-        }
     }
 }
