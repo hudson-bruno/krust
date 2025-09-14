@@ -2,13 +2,15 @@ use std::io;
 
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-use crate::{
-    response::{body::KafkaResponseBody, header::KafkaResponseHeader},
-    Serializable,
-};
+use crate::Serializable;
 
-pub mod body;
-pub mod header;
+mod body;
+mod header;
+
+pub use crate::response::{
+    body::{ApiVersion, KafkaResponseBody},
+    header::KafkaResponseHeader,
+};
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct KafkaResponse {

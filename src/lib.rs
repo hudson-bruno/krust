@@ -12,7 +12,7 @@ pub mod response;
 use request::KafkaRequest;
 use response::KafkaResponse;
 
-use crate::response::{body::KafkaResponseBody, header::KafkaResponseHeader};
+use crate::response::{ApiVersion, KafkaResponseBody, KafkaResponseHeader};
 
 pub fn serve(listener: TcpListener) -> Serve {
     Serve { listener }
@@ -43,12 +43,46 @@ async fn handle_connection(mut io: TcpStream, remote_addr: SocketAddr) {
         let request = KafkaRequest::from_reader(&mut io).await.unwrap();
         tracing::debug!("request: {:?}", request);
 
-        let response: KafkaResponse = KafkaResponse {
-            header: KafkaResponseHeader {
-                correlation_id: request.header.correlation_id,
-            },
-            body: KafkaResponseBody { error_code: 35 },
+        let response = if request.header.api_key == 18
+            && request.header.api_version >= 0
+            && request.header.api_version <= 4
+        {
+            KafkaResponse {
+                header: KafkaResponseHeader {
+                    correlation_id: request.header.correlation_id,
+                },
+                body: KafkaResponseBody {
+                    api_versions: vec![
+                        ApiVersion {
+                            api_key: 1,
+                            max_supported_api_version: 17,
+                            ..ApiVersion::default()
+                        },
+                        ApiVersion {
+                            api_key: 18,
+                            max_supported_api_version: 4,
+                            ..ApiVersion::default()
+                        },
+                        ApiVersion {
+                            api_key: 75,
+                            ..ApiVersion::default()
+                        },
+                    ],
+                    ..KafkaResponseBody::default()
+                },
+            }
+        } else {
+            KafkaResponse {
+                header: KafkaResponseHeader {
+                    correlation_id: request.header.correlation_id,
+                },
+                body: KafkaResponseBody {
+                    error_code: 35,
+                    ..KafkaResponseBody::default()
+                },
+            }
         };
+
         response.write_into(&mut io).await.unwrap();
 
         io.shutdown().await.unwrap();
