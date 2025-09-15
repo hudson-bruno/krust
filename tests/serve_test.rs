@@ -84,3 +84,20 @@ async fn test_api_versions() {
 
     assert_eq!(response.body.api_versions[2].api_key, 75);
 }
+
+#[tokio::test]
+async fn test_serial_requests() {
+    let mut ctx = TestContext::new().await;
+
+    for _ in 0..2 {
+        let request = KafkaRequest::default();
+        ctx.send_request(&request).await.unwrap();
+
+        let response = ctx.parse_response().await.unwrap();
+
+        assert_eq!(
+            request.header.correlation_id,
+            response.header.correlation_id
+        );
+    }
+}
