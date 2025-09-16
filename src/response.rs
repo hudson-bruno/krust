@@ -1,4 +1,4 @@
-use std::io;
+use std::io::{self, Cursor};
 
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
@@ -23,9 +23,15 @@ impl KafkaResponse {
     where
         R: AsyncReadExt + Unpin,
     {
-        let _message_size: i32 = reader.read_i32().await?;
-        let header = KafkaResponseHeader::from_reader(reader).await?;
-        let body = KafkaResponseBody::from_reader(reader).await?;
+        let message_size: usize = reader.read_i32().await?.try_into().unwrap();
+
+        let mut message_bytes = vec![0u8; message_size];
+        reader.read_exact(&mut message_bytes).await?;
+
+        let mut cursor = Cursor::new(message_bytes);
+
+        let header = KafkaResponseHeader::from_reader(&mut cursor).await?;
+        let body = KafkaResponseBody::from_reader(&mut cursor).await?;
 
         Ok(Self { header, body })
     }
