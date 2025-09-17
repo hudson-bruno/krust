@@ -1,17 +1,24 @@
 use std::{io, net::SocketAddr};
 
+use bytes::BytesMut;
 use tokio::{
+    io::{AsyncReadExt, AsyncWriteExt},
     net::{TcpListener, TcpStream},
     time::Instant,
 };
 
+pub mod constants;
 pub mod request;
 pub mod response;
+pub mod serde_kafka;
 
-use request::KafkaRequest;
-use response::KafkaResponse;
+use request::ApiVersionsRequest;
+use response::ApiVersionsResponse;
 
-use crate::response::{ApiVersion, KafkaResponseBody, KafkaResponseHeader};
+use crate::{
+    constants::{ApiKey, ErrorCode},
+    response::{ApiVersion, ApiVersionsResponseBody, ApiVersionsResponseHeader},
+};
 
 pub fn serve(listener: TcpListener) -> Serve {
     Serve { listener }
@@ -48,55 +55,59 @@ async fn handle_connection(mut io: TcpStream, remote_addr: SocketAddr) {
     });
 }
 
-async fn handle_package(mut io: &mut TcpStream) -> KafkaResponse {
-    let request = KafkaRequest::from_reader(&mut io).await.unwrap();
+async fn handle_package(io: &mut TcpStream) -> ApiVersionsResponse {
+    let message_size: i32 = io.read_i32().await.unwrap();
+    let mut message_bytes = vec![0u8; message_size.try_into().unwrap()];
+    io.read_exact(&mut message_bytes).await.unwrap();
+    let request: ApiVersionsRequest = serde_kafka::from_bytes(&message_bytes).unwrap();
+
     tracing::debug!("request: {:?}", request);
 
-    let response = if request.header.api_key == 18
+    let response = if request.header.api_key == ApiKey::ApiVersions
         && request.header.api_version >= 0
         && request.header.api_version <= 4
     {
-        KafkaResponse {
-            header: KafkaResponseHeader {
+        ApiVersionsResponse {
+            header: ApiVersionsResponseHeader {
                 correlation_id: request.header.correlation_id,
             },
-            body: KafkaResponseBody {
+            body: ApiVersionsResponseBody {
                 api_versions: vec![
                     ApiVersion {
-                        api_key: 1,
+                        api_key: ApiKey::Fetch,
                         max_supported_api_version: 17,
                         ..ApiVersion::default()
                     },
                     ApiVersion {
-                        api_key: 18,
+                        api_key: ApiKey::ApiVersions,
                         max_supported_api_version: 4,
                         ..ApiVersion::default()
                     },
                     ApiVersion {
-                        api_key: 75,
+                        api_key: ApiKey::DescribeTopicPartitions,
                         ..ApiVersion::default()
                     },
                 ],
-                ..KafkaResponseBody::default()
+                ..ApiVersionsResponseBody::default()
             },
         }
     } else {
-        KafkaResponse {
-            header: KafkaResponseHeader {
+        ApiVersionsResponse {
+            header: ApiVersionsResponseHeader {
                 correlation_id: request.header.correlation_id,
             },
-            body: KafkaResponseBody {
-                error_code: 35,
-                ..KafkaResponseBody::default()
+            body: ApiVersionsResponseBody {
+                error_code: ErrorCode::UnsupportedVersion,
+                ..ApiVersionsResponseBody::default()
             },
         }
     };
 
-    response.write_into(&mut io).await.unwrap();
+    let response_bytes = serde_kafka::to_bytes_mut(&response).unwrap();
+    let mut result = BytesMut::new();
+    result.extend_from_slice(&(response_bytes.len() as i32).to_be_bytes());
+    result.extend_from_slice(&response_bytes);
+    io.write_all_buf(&mut result).await.unwrap();
 
     response
-}
-
-pub trait Serializable {
-    fn size(&self) -> usize;
 }
