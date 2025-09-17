@@ -1,8 +1,9 @@
 use std::{num::TryFromIntError, string::FromUtf8Error};
 
 use bytes::Buf;
-use serde::de::{self, IntoDeserializer, Visitor};
+use serde::de::{self, DeserializeOwned, IntoDeserializer, Visitor};
 use serde::Deserialize;
+use tokio::io::AsyncReadExt;
 
 use super::COMPACT_STRING_NAME;
 
@@ -29,6 +30,18 @@ where
     } else {
         Err(Error::TrailingCharacters)
     }
+}
+
+pub async fn from_async_reader_with_message_size<R, D>(reader: &mut R) -> Result<D>
+where
+    R: AsyncReadExt + Unpin,
+    D: DeserializeOwned,
+{
+    let message_size: i32 = reader.read_i32().await.unwrap();
+    let mut message_bytes = vec![0u8; message_size.try_into().unwrap()];
+    reader.read_exact(&mut message_bytes).await.unwrap();
+
+    from_bytes(&message_bytes)
 }
 
 impl<'de> de::Deserializer<'de> for &mut Deserializer<'de> {

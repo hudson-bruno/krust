@@ -1,8 +1,6 @@
 use std::{io, net::SocketAddr};
 
-use bytes::BytesMut;
 use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt},
     net::{TcpListener, TcpStream},
     time::Instant,
 };
@@ -56,10 +54,9 @@ async fn handle_connection(mut io: TcpStream, remote_addr: SocketAddr) {
 }
 
 async fn handle_package(io: &mut TcpStream) -> ApiVersionsResponse {
-    let message_size: i32 = io.read_i32().await.unwrap();
-    let mut message_bytes = vec![0u8; message_size.try_into().unwrap()];
-    io.read_exact(&mut message_bytes).await.unwrap();
-    let request: ApiVersionsRequest = serde_kafka::from_bytes(&message_bytes).unwrap();
+    let request: ApiVersionsRequest = serde_kafka::from_async_reader_with_message_size(io)
+        .await
+        .unwrap();
 
     tracing::debug!("request: {:?}", request);
 
@@ -103,11 +100,9 @@ async fn handle_package(io: &mut TcpStream) -> ApiVersionsResponse {
         }
     };
 
-    let response_bytes = serde_kafka::to_bytes_mut(&response).unwrap();
-    let mut result = BytesMut::new();
-    result.extend_from_slice(&(response_bytes.len() as i32).to_be_bytes());
-    result.extend_from_slice(&response_bytes);
-    io.write_all_buf(&mut result).await.unwrap();
+    serde_kafka::to_async_writer_with_message_size(io, &response)
+        .await
+        .unwrap();
 
     response
 }

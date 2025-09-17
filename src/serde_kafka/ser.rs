@@ -2,6 +2,7 @@ use std::num::TryFromIntError;
 
 use bytes::{BufMut, BytesMut};
 use serde::{ser, Serialize};
+use tokio::io::AsyncWriteExt;
 
 use crate::serde_kafka::COMPACT_STRING_NAME;
 
@@ -20,6 +21,20 @@ where
     };
     value.serialize(&mut serializer)?;
     Ok(serializer.output)
+}
+
+pub async fn to_async_writer_with_message_size<W, S>(writer: &mut W, value: &S) -> Result<()>
+where
+    W: AsyncWriteExt + Unpin,
+    S: Serialize,
+{
+    let response_bytes = to_bytes_mut(value)?;
+    let mut result = BytesMut::new();
+    result.extend_from_slice(&(response_bytes.len() as i32).to_be_bytes());
+    result.extend_from_slice(&response_bytes);
+
+    writer.write_all_buf(&mut result).await.unwrap();
+    Ok(())
 }
 
 impl ser::Serializer for &mut Serializer {

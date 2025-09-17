@@ -3,8 +3,8 @@ mod de;
 mod error;
 mod ser;
 
-pub use de::{from_bytes, Deserializer};
+pub use de::{from_async_reader_with_message_size, from_bytes, Deserializer};
 pub use error::{Error, Result};
-pub use ser::{to_bytes_mut, Serializer};
+pub use ser::{to_async_writer_with_message_size, to_bytes_mut, Serializer};
 
 pub use compact_string::*;
