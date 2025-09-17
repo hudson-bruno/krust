@@ -1,42 +1,39 @@
-use codecrafters_kafka::{
-    constants::{ApiKey, ErrorCode},
-    request::{ApiVersionsRequest, RequestHeaderV2},
-};
-
 mod common;
 use common::TestContext;
+
+use serde::{Deserialize, Serialize};
+
+use codecrafters_kafka::{
+    constants::{ApiKey, ErrorCode},
+    headers::RequestHeaderV2,
+    modules::api_versions::payloads::{ApiVersionsRequestBody, ApiVersionsResponse},
+};
+
+#[derive(Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ApiVersionsRequest {
+    pub header: RequestHeaderV2,
+    pub body: ApiVersionsRequestBody,
+}
 
 #[tokio::test]
 async fn test_response_same_request_correlation_id() {
     let mut ctx = TestContext::new().await;
 
-    let request = ApiVersionsRequest::default();
-    ctx.send_request(&request).await.unwrap();
-
-    let response = ctx.parse_response().await.unwrap();
-
-    assert_eq!(
-        request.header.correlation_id,
-        response.header.correlation_id
-    );
-}
-
-#[tokio::test]
-async fn test_unsupported_api_key() {
-    let mut ctx = TestContext::new().await;
-
     let request = ApiVersionsRequest {
         header: RequestHeaderV2 {
-            api_key: ApiKey::Invalid,
+            api_key: ApiKey::ApiVersions,
             ..RequestHeaderV2::default()
         },
         ..ApiVersionsRequest::default()
     };
     ctx.send_request(&request).await.unwrap();
 
-    let response = ctx.parse_response().await.unwrap();
+    let response: ApiVersionsResponse = ctx.parse_response().await.unwrap();
 
-    assert_eq!(response.body.error_code, ErrorCode::UnsupportedVersion);
+    assert_eq!(
+        request.header.correlation_id,
+        response.header.correlation_id
+    );
 }
 
 #[tokio::test]
@@ -53,7 +50,7 @@ async fn test_unsupported_api_versions_version() {
     };
     ctx.send_request(&request).await.unwrap();
 
-    let response = ctx.parse_response().await.unwrap();
+    let response: ApiVersionsResponse = ctx.parse_response().await.unwrap();
 
     assert_eq!(response.body.error_code, ErrorCode::UnsupportedVersion);
 }
@@ -71,7 +68,7 @@ async fn test_api_versions() {
     };
     ctx.send_request(&request).await.unwrap();
 
-    let response = ctx.parse_response().await.unwrap();
+    let response: ApiVersionsResponse = ctx.parse_response().await.unwrap();
 
     assert_eq!(response.body.error_code, ErrorCode::NoError);
     assert_eq!(
@@ -95,11 +92,18 @@ async fn test_api_versions() {
 async fn test_serial_requests() {
     let mut ctx = TestContext::new().await;
 
-    for _ in 0..2 {
-        let request = ApiVersionsRequest::default();
+    for i in 0..2 {
+        let request = ApiVersionsRequest {
+            header: RequestHeaderV2 {
+                api_key: ApiKey::ApiVersions,
+                correlation_id: i,
+                ..RequestHeaderV2::default()
+            },
+            ..ApiVersionsRequest::default()
+        };
         ctx.send_request(&request).await.unwrap();
 
-        let response = ctx.parse_response().await.unwrap();
+        let response: ApiVersionsResponse = ctx.parse_response().await.unwrap();
 
         assert_eq!(
             request.header.correlation_id,

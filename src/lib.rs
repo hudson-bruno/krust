@@ -6,16 +6,14 @@ use tokio::{
 };
 
 pub mod constants;
-pub mod request;
-pub mod response;
+pub mod headers;
+pub mod modules;
 pub mod serde_kafka;
 
-use request::ApiVersionsRequest;
-use response::ApiVersionsResponse;
-
 use crate::{
-    constants::{ApiKey, ErrorCode},
-    response::{ApiVersion, ApiVersionsResponseBody, ApiVersionsResponseHeader},
+    constants::ApiKey,
+    headers::RequestHeaderV2,
+    modules::api_versions::{self, payloads::ApiVersionsResponse},
 };
 
 pub fn serve(listener: TcpListener) -> Serve {
@@ -54,50 +52,16 @@ async fn handle_connection(mut io: TcpStream, remote_addr: SocketAddr) {
 }
 
 async fn handle_package(io: &mut TcpStream) -> ApiVersionsResponse {
-    let request: ApiVersionsRequest = serde_kafka::from_async_reader_with_message_size(io)
-        .await
-        .unwrap();
+    let (header, raw_body): (RequestHeaderV2, Vec<u8>) =
+        serde_kafka::from_async_reader_trail_with_message_size(io)
+            .await
+            .unwrap();
 
-    tracing::debug!("request: {:?}", request);
+    tracing::debug!("header: {:?}", header);
 
-    let response = if request.header.api_key == ApiKey::ApiVersions
-        && request.header.api_version >= 0
-        && request.header.api_version <= 4
-    {
-        ApiVersionsResponse {
-            header: ApiVersionsResponseHeader {
-                correlation_id: request.header.correlation_id,
-            },
-            body: ApiVersionsResponseBody {
-                api_versions: vec![
-                    ApiVersion {
-                        api_key: ApiKey::Fetch,
-                        max_supported_api_version: 17,
-                        ..ApiVersion::default()
-                    },
-                    ApiVersion {
-                        api_key: ApiKey::ApiVersions,
-                        max_supported_api_version: 4,
-                        ..ApiVersion::default()
-                    },
-                    ApiVersion {
-                        api_key: ApiKey::DescribeTopicPartitions,
-                        ..ApiVersion::default()
-                    },
-                ],
-                ..ApiVersionsResponseBody::default()
-            },
-        }
-    } else {
-        ApiVersionsResponse {
-            header: ApiVersionsResponseHeader {
-                correlation_id: request.header.correlation_id,
-            },
-            body: ApiVersionsResponseBody {
-                error_code: ErrorCode::UnsupportedVersion,
-                ..ApiVersionsResponseBody::default()
-            },
-        }
+    let response: ApiVersionsResponse = match header.api_key {
+        ApiKey::ApiVersions => api_versions::handler(&header, raw_body),
+        _ => panic!("Api key not found"),
     };
 
     serde_kafka::to_async_writer_with_message_size(io, &response)

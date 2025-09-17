@@ -1,6 +1,5 @@
-use serde::{Deserialize, Serialize};
-
 use crate::constants::ApiKey;
+use serde::{Deserialize, Serialize};
 
 #[derive(Default, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RequestHeaderV2 {
@@ -9,4 +8,9 @@ pub struct RequestHeaderV2 {
     pub correlation_id: i32,
     pub client_id: String,
     pub tag_buffer: i8,
+}
+
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ResponseHeaderV0 {
+    pub correlation_id: i32,
 }

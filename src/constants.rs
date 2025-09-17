@@ -15,5 +15,4 @@ pub enum ApiKey {
     Fetch = 1,
     ApiVersions = 18,
     DescribeTopicPartitions = 75,
-    Invalid = 100,
 }

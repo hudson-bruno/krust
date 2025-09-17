@@ -1,8 +1,10 @@
 use std::{num::TryFromIntError, string::FromUtf8Error};
 
 use bytes::Buf;
-use serde::de::{self, DeserializeOwned, IntoDeserializer, Visitor};
-use serde::Deserialize;
+use serde::{
+    de::{self, DeserializeOwned, IntoDeserializer, Visitor},
+    Deserialize,
+};
 use tokio::io::AsyncReadExt;
 
 use super::COMPACT_STRING_NAME;
@@ -17,6 +19,16 @@ impl<'de> Deserializer<'de> {
     pub fn from_bytes(input: &'de [u8]) -> Self {
         Deserializer { input }
     }
+}
+
+pub fn from_bytes_trail<'a, T>(s: &'a [u8]) -> Result<(T, Vec<u8>)>
+where
+    T: Deserialize<'a>,
+{
+    let mut deserializer = Deserializer::from_bytes(s);
+    let t = T::deserialize(&mut deserializer)?;
+
+    Ok((t, deserializer.input.to_owned()))
 }
 
 pub fn from_bytes<'a, T>(s: &'a [u8]) -> Result<T>
@@ -42,6 +54,18 @@ where
     reader.read_exact(&mut message_bytes).await.unwrap();
 
     from_bytes(&message_bytes)
+}
+
+pub async fn from_async_reader_trail_with_message_size<R, D>(reader: &mut R) -> Result<(D, Vec<u8>)>
+where
+    R: AsyncReadExt + Unpin,
+    D: DeserializeOwned,
+{
+    let message_size: i32 = reader.read_i32().await.unwrap();
+    let mut message_bytes = vec![0u8; message_size.try_into().unwrap()];
+    reader.read_exact(&mut message_bytes).await.unwrap();
+
+    from_bytes_trail(&message_bytes)
 }
 
 impl<'de> de::Deserializer<'de> for &mut Deserializer<'de> {
@@ -364,13 +388,9 @@ impl<'de, 'a> de::SeqAccess<'de> for SeqAccess<'a, 'de> {
 ////////////////////////////////////////////////////////////////////////////////
 #[cfg(test)]
 mod test {
-    use super::*;
+    use crate::serde_kafka::CompactString;
 
-    use crate::{
-        constants::ApiKey,
-        request::{ApiVersionsRequest, ApiVersionsRequestBody, RequestHeaderV2},
-        serde_kafka::CompactString,
-    };
+    use super::*;
 
     #[derive(Deserialize, PartialEq, Debug)]
     struct Test {
@@ -462,41 +482,6 @@ mod test {
                 sub_struct_expected.clone(),
             ],
         };
-        assert_eq!(expected, from_bytes(bytes).unwrap());
-    }
-
-    #[test]
-    fn test_api_versions() {
-        let bytes: &[u8] = &[
-            // 0x00, 0x00, 0x00, 0x23, // message size
-            0x00, 0x12, // Api key
-            0x00, 0x04, // Api version
-            0x00, 0x00, 0x00, 0x07, // Correlation id
-            0x00, 0x09, // Client id len
-            0x6b, 0x61, 0x66, 0x6b, 0x61, 0x2d, 0x63, 0x6c, 0x69, // Client id string
-            0x00, // tag buffer
-            0x0a, // Client id compact len
-            0x6b, 0x61, 0x66, 0x6b, 0x61, 0x2d, 0x63, 0x6c, 0x69, // Client id compact string
-            0x04, // Client software version compact len
-            0x30, 0x2e, 0x31, // Client software version compact string
-            0x00, // tag buffer
-        ];
-
-        let expected = ApiVersionsRequest {
-            header: RequestHeaderV2 {
-                api_key: ApiKey::ApiVersions,
-                api_version: 4,
-                correlation_id: 7,
-                client_id: "kafka-cli".into(),
-                tag_buffer: 0,
-            },
-            body: ApiVersionsRequestBody {
-                client_id: "kafka-cli".into(),
-                client_software_version: "0.1".into(),
-                tag_buffer: 0,
-            },
-        };
-
         assert_eq!(expected, from_bytes(bytes).unwrap());
     }
 }

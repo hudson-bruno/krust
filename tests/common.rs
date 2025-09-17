@@ -1,6 +1,7 @@
 use std::io;
 
-use codecrafters_kafka::{request::ApiVersionsRequest, response::ApiVersionsResponse, serde_kafka};
+use codecrafters_kafka::serde_kafka;
+use serde::{de::DeserializeOwned, Serialize};
 use tokio::{
     net::{TcpListener, TcpStream},
     task::JoinHandle,
@@ -28,7 +29,10 @@ impl TestContext {
         }
     }
 
-    pub async fn parse_response(&mut self) -> io::Result<ApiVersionsResponse> {
+    pub async fn parse_response<D>(&mut self) -> io::Result<D>
+    where
+        D: DeserializeOwned,
+    {
         Ok(
             serde_kafka::from_async_reader_with_message_size(&mut self.client_io)
                 .await
@@ -36,7 +40,10 @@ impl TestContext {
         )
     }
 
-    pub async fn send_request(&mut self, request: &ApiVersionsRequest) -> serde_kafka::Result<()> {
+    pub async fn send_request<S>(&mut self, request: &S) -> serde_kafka::Result<()>
+    where
+        S: Serialize,
+    {
         serde_kafka::to_async_writer_with_message_size(&mut self.client_io, &request).await
     }
 }
