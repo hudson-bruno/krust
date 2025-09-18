@@ -5,6 +5,9 @@ authors = ["Codecrafters <hello@codecrafters.io>"]
 edition = "2021"
 rust-version = "1.87"
 
+[features]
+test-helpers = []
+
 [dependencies]
 bytes = "1.10.1"
 serde = { version = "1.0.225", features = ["derive"] }
@@ -12,3 +15,6 @@ serde_repr = "0.1.20"
 tokio = { version = "1.47.1", features = ["full"] }
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.20", features = ["env-filter"] }
+
+[dev-dependencies]
+codecrafters-kafka = { path = ".", features = ["test-helpers"] }

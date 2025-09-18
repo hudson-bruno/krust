@@ -70,6 +70,7 @@ name = "codecrafters-kafka"
 version = "0.1.0"
 dependencies = [
  "bytes",
+ "codecrafters-kafka",
  "serde",
  "serde_repr",
  "tokio",

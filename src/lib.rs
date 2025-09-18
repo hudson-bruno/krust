@@ -10,6 +10,9 @@ pub mod headers;
 pub mod modules;
 pub mod serde_kafka;
 
+#[cfg(feature = "test-helpers")]
+pub mod test_helpers;
+
 use crate::{
     constants::ApiKey,
     headers::RequestHeaderV2,

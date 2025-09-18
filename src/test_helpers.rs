@@ -1,6 +1,6 @@
 use std::io;
 
-use codecrafters_kafka::serde_kafka;
+use crate::serde_kafka;
 use serde::{de::DeserializeOwned, Serialize};
 use tokio::{
     net::{TcpListener, TcpStream},
@@ -18,7 +18,7 @@ impl TestContext {
         let listener_addr = listener.local_addr().unwrap();
 
         let serve_handle = tokio::spawn(async {
-            codecrafters_kafka::serve(listener).run().await.unwrap();
+            crate::serve(listener).run().await.unwrap();
         });
 
         let client_io = TcpStream::connect(listener_addr).await.unwrap();
