@@ -1,6 +1,7 @@
 use std::io;
 
-use codecrafters_kafka::{request::KafkaRequest, response::KafkaResponse};
+use crate::serde_kafka;
+use serde::{de::DeserializeOwned, Serialize};
 use tokio::{
     net::{TcpListener, TcpStream},
     task::JoinHandle,
@@ -17,7 +18,7 @@ impl TestContext {
         let listener_addr = listener.local_addr().unwrap();
 
         let serve_handle = tokio::spawn(async {
-            codecrafters_kafka::serve(listener).run().await.unwrap();
+            crate::serve(listener).run().await.unwrap();
         });
 
         let client_io = TcpStream::connect(listener_addr).await.unwrap();
@@ -28,12 +29,22 @@ impl TestContext {
         }
     }
 
-    pub async fn parse_response(&mut self) -> io::Result<KafkaResponse> {
-        KafkaResponse::from_reader(&mut self.client_io).await
+    pub async fn parse_response<D>(&mut self) -> io::Result<D>
+    where
+        D: DeserializeOwned,
+    {
+        Ok(
+            serde_kafka::from_async_reader_with_message_size(&mut self.client_io)
+                .await
+                .unwrap(),
+        )
     }
 
-    pub async fn send_request(&mut self, request: &KafkaRequest) -> io::Result<()> {
-        request.write_into(&mut self.client_io).await
+    pub async fn send_request<S>(&mut self, request: &S) -> serde_kafka::Result<()>
+    where
+        S: Serialize,
+    {
+        serde_kafka::to_async_writer_with_message_size(&mut self.client_io, &request).await
     }
 }
 

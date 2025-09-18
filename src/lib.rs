@@ -1,17 +1,25 @@
-use std::{io, net::SocketAddr};
+use std::{fmt::Debug, io, net::SocketAddr};
 
+use serde::Serialize;
 use tokio::{
+    io::AsyncWriteExt,
     net::{TcpListener, TcpStream},
     time::Instant,
 };
 
-pub mod request;
-pub mod response;
+pub mod constants;
+pub mod headers;
+pub mod modules;
+pub mod serde_kafka;
 
-use request::KafkaRequest;
-use response::KafkaResponse;
+#[cfg(feature = "test-helpers")]
+pub mod test_helpers;
 
-use crate::response::{ApiVersion, KafkaResponseBody, KafkaResponseHeader};
+use crate::{
+    constants::ApiKey,
+    headers::RequestHeaderV2,
+    modules::{api_versions, describe_topic_partitions},
+};
 
 pub fn serve(listener: TcpListener) -> Serve {
     Serve { listener }
@@ -40,63 +48,44 @@ async fn handle_connection(mut io: TcpStream, remote_addr: SocketAddr) {
         loop {
             let start_time = Instant::now();
 
-            let response = handle_package(&mut io).await;
-
-            let elapsed_time = start_time.elapsed();
-            tracing::debug!("response: {:?} elapsed: {:?}", response, elapsed_time);
+            handle_package(&mut io, start_time).await;
         }
     });
 }
 
-async fn handle_package(mut io: &mut TcpStream) -> KafkaResponse {
-    let request = KafkaRequest::from_reader(&mut io).await.unwrap();
-    tracing::debug!("request: {:?}", request);
+async fn handle_package(io: &mut TcpStream, start_time: Instant) {
+    let (header, raw_body): (RequestHeaderV2, Vec<u8>) =
+        serde_kafka::from_async_reader_trail_with_message_size(io)
+            .await
+            .unwrap();
 
-    let response = if request.header.api_key == 18
-        && request.header.api_version >= 0
-        && request.header.api_version <= 4
-    {
-        KafkaResponse {
-            header: KafkaResponseHeader {
-                correlation_id: request.header.correlation_id,
-            },
-            body: KafkaResponseBody {
-                api_versions: vec![
-                    ApiVersion {
-                        api_key: 1,
-                        max_supported_api_version: 17,
-                        ..ApiVersion::default()
-                    },
-                    ApiVersion {
-                        api_key: 18,
-                        max_supported_api_version: 4,
-                        ..ApiVersion::default()
-                    },
-                    ApiVersion {
-                        api_key: 75,
-                        ..ApiVersion::default()
-                    },
-                ],
-                ..KafkaResponseBody::default()
-            },
+    tracing::debug!("header: {:?}", header);
+
+    match header.api_key {
+        ApiKey::ApiVersions => {
+            send_response(io, api_versions::handler(&header, raw_body), start_time).await
         }
-    } else {
-        KafkaResponse {
-            header: KafkaResponseHeader {
-                correlation_id: request.header.correlation_id,
-            },
-            body: KafkaResponseBody {
-                error_code: 35,
-                ..KafkaResponseBody::default()
-            },
+        ApiKey::DescribeTopicPartitions => {
+            send_response(
+                io,
+                describe_topic_partitions::handler(&header, raw_body),
+                start_time,
+            )
+            .await
         }
+        _ => panic!("Api key not found"),
     };
-
-    response.write_into(&mut io).await.unwrap();
-
-    response
 }
 
-pub trait Serializable {
-    fn size(&self) -> usize;
+async fn send_response<I, S>(io: &mut I, response: S, start_time: Instant)
+where
+    I: AsyncWriteExt + Unpin,
+    S: Serialize + Debug,
+{
+    serde_kafka::to_async_writer_with_message_size(io, &response)
+        .await
+        .unwrap();
+
+    let elapsed_time = start_time.elapsed();
+    tracing::debug!("response: {:?} elapsed: {:?}", response, elapsed_time);
 }
