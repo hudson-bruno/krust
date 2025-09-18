@@ -34,6 +34,7 @@ where
     result.extend_from_slice(&response_bytes);
 
     writer.write_all_buf(&mut result).await.unwrap();
+    writer.flush().await.unwrap();
     Ok(())
 }
 
@@ -49,8 +50,9 @@ impl ser::Serializer for &mut Serializer {
     type SerializeStruct = Self;
     type SerializeStructVariant = Self;
 
-    fn serialize_bool(self, _v: bool) -> Result<()> {
-        unimplemented!()
+    fn serialize_bool(self, v: bool) -> Result<()> {
+        self.output.put_u8(v as u8);
+        Ok(())
     }
 
     fn serialize_i8(self, v: i8) -> Result<()> {
@@ -72,16 +74,18 @@ impl ser::Serializer for &mut Serializer {
         unimplemented!()
     }
 
-    fn serialize_u8(self, _v: u8) -> Result<()> {
-        unimplemented!()
+    fn serialize_u8(self, v: u8) -> Result<()> {
+        self.output.put_u8(v);
+        Ok(())
     }
 
     fn serialize_u16(self, _v: u16) -> Result<()> {
         unimplemented!()
     }
 
-    fn serialize_u32(self, _v: u32) -> Result<()> {
-        unimplemented!()
+    fn serialize_u32(self, v: u32) -> Result<()> {
+        self.output.put_u32(v);
+        Ok(())
     }
 
     fn serialize_u64(self, _v: u64) -> Result<()> {
@@ -159,11 +163,12 @@ impl ser::Serializer for &mut Serializer {
         if name == COMPACT_STRING_NAME {
             let s = value.serialize(StringCapture)?;
 
-            let length: i8 = (s.len() + 1)
+            let length: i8 = s
+                .len()
                 .try_into()
                 .map_err(|e: TryFromIntError| Error::Message(e.to_string()))?;
 
-            self.output.put_i8(length);
+            self.output.put_i8(length + 1);
             self.output.put_slice(s.as_bytes());
 
             Ok(())
@@ -196,7 +201,7 @@ impl ser::Serializer for &mut Serializer {
     }
 
     fn serialize_tuple(self, _len: usize) -> Result<Self::SerializeTuple> {
-        unimplemented!()
+        Ok(self)
     }
 
     fn serialize_tuple_struct(
@@ -256,15 +261,15 @@ impl ser::SerializeTuple for &mut Serializer {
     type Ok = ();
     type Error = Error;
 
-    fn serialize_element<T>(&mut self, _value: &T) -> Result<()>
+    fn serialize_element<T>(&mut self, value: &T) -> Result<()>
     where
         T: ?Sized + Serialize,
     {
-        unimplemented!()
+        value.serialize(&mut **self)
     }
 
     fn end(self) -> Result<()> {
-        unimplemented!()
+        Ok(())
     }
 }
 

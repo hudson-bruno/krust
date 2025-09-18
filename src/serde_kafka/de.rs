@@ -78,11 +78,12 @@ impl<'de> de::Deserializer<'de> for &mut Deserializer<'de> {
         unimplemented!()
     }
 
-    fn deserialize_bool<V>(self, _visitor: V) -> Result<V::Value>
+    fn deserialize_bool<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        unimplemented!()
+        let value = self.input.get_u8();
+        visitor.visit_bool(value != 0)
     }
 
     fn deserialize_i8<V>(self, visitor: V) -> Result<V::Value>
@@ -116,11 +117,12 @@ impl<'de> de::Deserializer<'de> for &mut Deserializer<'de> {
         unimplemented!()
     }
 
-    fn deserialize_u8<V>(self, _visitor: V) -> Result<V::Value>
+    fn deserialize_u8<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        unimplemented!()
+        let value = self.input.get_u8();
+        visitor.visit_u8(value)
     }
 
     fn deserialize_u16<V>(self, _visitor: V) -> Result<V::Value>
@@ -130,11 +132,12 @@ impl<'de> de::Deserializer<'de> for &mut Deserializer<'de> {
         unimplemented!()
     }
 
-    fn deserialize_u32<V>(self, _visitor: V) -> Result<V::Value>
+    fn deserialize_u32<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        unimplemented!()
+        let value = self.input.get_u32();
+        visitor.visit_u32(value)
     }
 
     fn deserialize_u64<V>(self, _visitor: V) -> Result<V::Value>
@@ -295,11 +298,14 @@ impl<'de> de::Deserializer<'de> for &mut Deserializer<'de> {
         })
     }
 
-    fn deserialize_tuple<V>(self, _len: usize, visitor: V) -> Result<V::Value>
+    fn deserialize_tuple<V>(self, len: usize, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        self.deserialize_seq(visitor)
+        visitor.visit_seq(SeqAccess {
+            deserializer: self,
+            len,
+        })
     }
 
     fn deserialize_tuple_struct<V>(

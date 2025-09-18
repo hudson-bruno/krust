@@ -5,6 +5,7 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 pub enum ErrorCode {
     #[default]
     NoError = 0,
+    UnknownTopic = 3,
     UnsupportedVersion = 35,
 }
 

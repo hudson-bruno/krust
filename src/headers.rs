@@ -10,7 +10,13 @@ pub struct RequestHeaderV2 {
     pub tag_buffer: i8,
 }
 
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Default, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ResponseHeaderV0 {
     pub correlation_id: i32,
+}
+
+#[derive(Default, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ResponseHeaderV1 {
+    pub correlation_id: i32,
+    pub tag_buffer: i8,
 }

@@ -2,6 +2,7 @@ mod compact_string;
 mod de;
 mod error;
 mod ser;
+pub mod uuid_as_bytes;
 
 pub use de::{
     from_async_reader_trail_with_message_size, from_async_reader_with_message_size, from_bytes,
