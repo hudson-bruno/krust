@@ -33,8 +33,8 @@ where
             A: SeqAccess<'de>,
         {
             let mut bytes = [0u8; 16];
-            for i in 0..16 {
-                bytes[i] = seq
+            for (i, byte) in bytes.iter_mut().enumerate() {
+                *byte = seq
                     .next_element()?
                     .ok_or_else(|| serde::de::Error::invalid_length(i, &self))?;
             }
