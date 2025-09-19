@@ -70,8 +70,9 @@ impl ser::Serializer for &mut Serializer {
         Ok(())
     }
 
-    fn serialize_i64(self, _v: i64) -> Result<()> {
-        unimplemented!()
+    fn serialize_i64(self, v: i64) -> Result<()> {
+        self.output.put_i64(v);
+        Ok(())
     }
 
     fn serialize_u8(self, v: u8) -> Result<()> {
@@ -209,7 +210,7 @@ impl ser::Serializer for &mut Serializer {
         _name: &'static str,
         _len: usize,
     ) -> Result<Self::SerializeTupleStruct> {
-        unimplemented!()
+        Ok(self)
     }
 
     fn serialize_tuple_variant(
@@ -234,10 +235,11 @@ impl ser::Serializer for &mut Serializer {
         self,
         _name: &'static str,
         _variant_index: u32,
-        _variant: &'static str,
+        variant: &'static str,
         _len: usize,
     ) -> Result<Self::SerializeStructVariant> {
-        unimplemented!()
+        variant.serialize(&mut *self)?;
+        Ok(self)
     }
 }
 
@@ -277,15 +279,15 @@ impl ser::SerializeTupleStruct for &mut Serializer {
     type Ok = ();
     type Error = Error;
 
-    fn serialize_field<T>(&mut self, _value: &T) -> Result<()>
+    fn serialize_field<T>(&mut self, value: &T) -> Result<()>
     where
         T: ?Sized + Serialize,
     {
-        unimplemented!()
+        value.serialize(&mut **self)
     }
 
     fn end(self) -> Result<()> {
-        unimplemented!()
+        Ok(())
     }
 }
 
@@ -348,15 +350,15 @@ impl ser::SerializeStructVariant for &mut Serializer {
     type Ok = ();
     type Error = Error;
 
-    fn serialize_field<T>(&mut self, _key: &'static str, _value: &T) -> Result<()>
+    fn serialize_field<T>(&mut self, _key: &'static str, value: &T) -> Result<()>
     where
         T: ?Sized + Serialize,
     {
-        unimplemented!()
+        value.serialize(&mut **self)
     }
 
     fn end(self) -> Result<()> {
-        unimplemented!()
+        Ok(())
     }
 }
 struct StringCapture;

@@ -1,11 +1,20 @@
-use std::{io, net::SocketAddr, str::FromStr};
+use std::{env, io, net::SocketAddr, str::FromStr};
 
-use tokio::net::TcpListener;
+use tokio::{
+    fs::{self},
+    net::TcpListener,
+};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]
 async fn main() -> io::Result<()> {
     init_tracing();
+
+    let content =
+        fs::read("/tmp/kraft-combined-logs/__cluster_metadata-0/00000000000000000000.log")
+            .await
+            .unwrap();
+    tracing::info!("{content:?}");
 
     let addr = SocketAddr::from_str("127.0.0.1:9092").unwrap();
 
@@ -20,9 +29,8 @@ async fn main() -> io::Result<()> {
 pub fn init_tracing() {
     tracing_subscriber::registry()
         .with(
-            tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| {
-                format!("{}=debug,tower_http=debug", env!("CARGO_CRATE_NAME")).into()
-            }),
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| format!("{}=debug", env!("CARGO_CRATE_NAME")).into()),
         )
         .with(tracing_subscriber::fmt::layer())
         .init();

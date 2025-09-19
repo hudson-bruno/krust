@@ -110,11 +110,12 @@ impl<'de> de::Deserializer<'de> for &mut Deserializer<'de> {
         visitor.visit_i32(value)
     }
 
-    fn deserialize_i64<V>(self, _visitor: V) -> Result<V::Value>
+    fn deserialize_i64<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        unimplemented!()
+        let value = self.input.get_i64();
+        visitor.visit_i64(value)
     }
 
     fn deserialize_u8<V>(self, visitor: V) -> Result<V::Value>
